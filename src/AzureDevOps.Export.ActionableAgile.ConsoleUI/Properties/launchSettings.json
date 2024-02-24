@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AzureDevOps.Export.ActionableAgile.ConsoleUI": {
+      "commandName": "Project",
+      "commandLineArgs": "--org https://dev.azure.com/nkdagility-learn/"
+    }
+  }
+}
