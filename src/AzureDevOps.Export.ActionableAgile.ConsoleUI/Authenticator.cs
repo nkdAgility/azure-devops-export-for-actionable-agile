@@ -33,7 +33,8 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         {
             if (token != null)
             {
-                return $"Bearer {token}";
+              string auth =  Convert.ToBase64String(System.Text.ASCIIEncoding.ASCII.GetBytes(string.Format("{0}:{1}", "", token)));
+                return $"Basic {auth}";
             }
 
             try

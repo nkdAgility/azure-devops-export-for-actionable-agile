@@ -94,6 +94,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         {
             Name = name;
             Id = id;
+
         }
 
         public dynamic Name { get; }

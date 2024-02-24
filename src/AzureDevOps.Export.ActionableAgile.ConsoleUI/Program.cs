@@ -1,4 +1,6 @@
-﻿using Microsoft.Identity.Client;
+﻿using AzureDevOps.Export.ActionableAgile.ConsoleUI.DataContracts;
+using Microsoft.Identity.Client;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.CommandLine;
@@ -44,15 +46,16 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         {
             var authTool = new Authenticator();
             var authHeader = authTool.AuthenticationCommand(token).Result;
+
             WriteCurrentStatus(azureDevOpsOrganizationUrl, projectName, teamName, boardName);
-            projectName = GetProjectName(authHeader, azureDevOpsOrganizationUrl, projectName);
+            ProjectItem projectItem = GetProjectName(authHeader, azureDevOpsOrganizationUrl, projectName);
             WriteCurrentStatus(azureDevOpsOrganizationUrl, projectName, teamName, boardName);
-            teamName = GetTeamName(authHeader, azureDevOpsOrganizationUrl, projectName, teamName);
+            teamName = GetTeamName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamName);
             WriteCurrentStatus(azureDevOpsOrganizationUrl, projectName, teamName, boardName);
             boardName = GetBoardName(authHeader, azureDevOpsOrganizationUrl, projectName, teamName, boardName);
             WriteCurrentStatus(azureDevOpsOrganizationUrl, projectName, teamName, boardName);
 
-            ExportData(authHeader, azureDevOpsOrganizationUrl, projectName, teamName, boardName);
+            ExportData(authHeader, azureDevOpsOrganizationUrl, projectItem, teamName, boardName);
         }
 
         private static void WriteCurrentStatus(string azureDevOpsOrganizationUrl, string projectName, string teamName, string boardName)
@@ -104,13 +107,13 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             return boardName;
         }
 
-        private static string GetTeamName(string authHeader, string azureDevOpsOrganizationUrl, string? projectName, string teamName)
+        private static string GetTeamName(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem? projectItem, string teamName)
         {
             if (teamName != null)
             {
 
                 //GET https://dev.azure.com/{organization}/_apis/projects/{projectId}/teams/{teamId}?api-version=7.2-preview.3
-                string apiGetSingle = $"{azureDevOpsOrganizationUrl}/_apis/projects/{projectName}/teams/{teamName}?api-version=7.2-preview.3";
+                string apiGetSingle = $"{azureDevOpsOrganizationUrl}/_apis/projects/{projectItem.id}/teams/{teamName}?api-version=7.2-preview.3";
                 var singleResult = GetResult(authHeader, apiGetSingle);
                 if (string.IsNullOrEmpty(singleResult))
                 {
@@ -125,7 +128,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             if (string.IsNullOrEmpty(teamName))
             {
                 //GET https://dev.azure.com/{organization}/_apis/projects/{projectId}/teams?api-version=7.2-preview.3
-                string apiCallUrl = $"{azureDevOpsOrganizationUrl}/_apis/projects/{projectName}/teams?api-version=7.2-preview.3";
+                string apiCallUrl = $"{azureDevOpsOrganizationUrl}/_apis/projects/{projectItem.id}/teams?api-version=7.2-preview.3";
                 var result = GetResult(authHeader, apiCallUrl);
                 dynamic data = JObject.Parse(result);
 
@@ -139,44 +142,46 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             return teamName;
         }
 
-        private static string? GetProjectName(string authHeader, string azureDevOpsOrganizationUrl, string? projectName)
+        private static ProjectItem? GetProjectName(string authHeader, string azureDevOpsOrganizationUrl, string? projectName)
         {
+            ProjectItem projectItem = null;
             if (projectName != null)
             {
-
               //GET https://dev.azure.com/{organization}/_apis/projects/{projectId}/teams?api-version=7.2-preview.3
               string apiGetProject = $"{azureDevOpsOrganizationUrl}/_apis/projects/{projectName}?api-version=7.2-preview.4";
               var projectResult = GetResult(authHeader, apiGetProject);
                 if (string.IsNullOrEmpty(projectResult))
                 {
-                    projectName = string.Empty;
+                    projectItem = null;
                 } else
                 {
-                    dynamic data = JObject.Parse(projectResult);
-                    projectName = data.name;
+                    projectItem = JsonConvert.DeserializeObject<ProjectItem>(projectResult);
                 }
             } 
-            if (string.IsNullOrEmpty(projectName))
+            if (projectItem == null)
             {
                 string apiCallUrl = $"{azureDevOpsOrganizationUrl}/_apis/projects?stateFilter=All&api-version=2.2";
                 var result = GetResult(authHeader, apiCallUrl);
-                dynamic data = JObject.Parse(result);
 
+                var projectItems = JsonConvert.DeserializeObject<ProjectItems>(result);
+   
                 CommandLineChooser chooser = new CommandLineChooser("Project");
-                foreach (dynamic mo in data.value)
+                foreach (ProjectItem pi in projectItems.value)
                 {
-                    chooser.Add(new CommandLineChoice(mo.name, mo.id));
+                    chooser.Add(new CommandLineChoice(pi.name, pi.id));
                 }
                 projectName = chooser.Choose()?.Name;
-            }
 
-            return projectName;
+               return projectItems.value.SingleOrDefault(pi => pi.name == projectName);
+
+            }
+            return projectItem;
         }
 
-        private static void ExportData(string authHeader, string azureDevOpsOrganizationUrl, string? projectName, string teamName, string boardName)
+        private static void ExportData(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem? projectItem, string teamName, string boardName)
         {
             //GET https://dev.azure.com/{organization}/{project}/{team}/_apis/work/boards/{id}?api-version=7.2-preview.1
-            string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{projectName}/{teamName}/_apis/work/boards/{boardName}?api-version=7.2-preview.1";
+            string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamName}/_apis/work/boards/{boardName}?api-version=7.2-preview.1";
             var result = GetResult(authHeader, apiCallUrl);
 
             dynamic data = JObject.Parse(result);
@@ -189,7 +194,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             Console.WriteLine(".");
 
             /// get Work Items From Boards
-            string apiCallUrlWi = $"{azureDevOpsOrganizationUrl}/{projectName}/{teamName}/_apis/work/backlogs/{boardName}/workItems?api-version=7.2-preview.1";
+            string apiCallUrlWi = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamName}/_apis/work/backlogs/{boardName}/workItems?api-version=7.2-preview.1";
             var resultWi = GetResult(authHeader, apiCallUrlWi);
             dynamic data2 = JObject.Parse(resultWi);
             Console.WriteLine(data2.count);
