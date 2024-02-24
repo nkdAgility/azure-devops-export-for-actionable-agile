@@ -38,7 +38,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
                     Console.WriteLine($"{count}. {options.Name}");
                     count++;
                 }
-                int selected = GetNumberFromUser(choices.Count-1);
+                int selected = GetNumberFromUser(choices.Count);
                 if (selected == -1 || selected == 0)
                 {
                     throw new InvalidSelectionException();

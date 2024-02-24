@@ -44,16 +44,30 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         {
             var authTool = new Authenticator();
             var authHeader = authTool.AuthenticationCommand(token).Result;
-
+            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectName, teamName, boardName);
             projectName = GetProjectName(authHeader, azureDevOpsOrganizationUrl, projectName);
-            Console.WriteLine($"Project: {projectName}");
+            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectName, teamName, boardName);
             teamName = GetTeamName(authHeader, azureDevOpsOrganizationUrl, projectName, teamName);
-            Console.WriteLine($"Team: {teamName}");
+            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectName, teamName, boardName);
             boardName = GetBoardName(authHeader, azureDevOpsOrganizationUrl, projectName, teamName, boardName);
-            Console.WriteLine($"Board: {boardName}");
+            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectName, teamName, boardName);
 
-            throw new NotImplementedException();
+            ExportData(authHeader, azureDevOpsOrganizationUrl, projectName, teamName, boardName);
         }
+
+        private static void WriteCurrentStatus(string azureDevOpsOrganizationUrl, string projectName, string teamName, string boardName)
+        {
+            Console.Clear();
+            Console.WriteLine("Azure DevOps Export for Actionable Agile");
+            Console.WriteLine("================");
+            Console.WriteLine($"Org: {azureDevOpsOrganizationUrl}");
+            Console.WriteLine($"Project: {projectName}");
+            Console.WriteLine($"Team: {teamName}");
+            Console.WriteLine($"Board: {boardName}");
+            Console.WriteLine("================");
+
+        }
+
 
         private static string GetBoardName(string authHeader, string azureDevOpsOrganizationUrl, string? projectName, string teamName, string boardName)
         {
@@ -159,42 +173,28 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             return projectName;
         }
 
-        private static void ExportData(string token, string azureDevOpsOrganizationUrl, string projectName, string boardName)
+        private static void ExportData(string authHeader, string azureDevOpsOrganizationUrl, string? projectName, string teamName, string boardName)
         {
-            string id = "ba3e157a-c809-4d24-aedd-da8a080ec6da";
             //GET https://dev.azure.com/{organization}/{project}/{team}/_apis/work/boards/{id}?api-version=7.2-preview.1
-            string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{projectName}/Application Overview/_apis/work/boards/{id}?api-version=7.2-preview.1";
-            var result = GetResult(token, apiCallUrl);
+            string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{projectName}/{teamName}/_apis/work/boards/{boardName}?api-version=7.2-preview.1";
+            var result = GetResult(authHeader, apiCallUrl);
 
             dynamic data = JObject.Parse(result);
+
             Console.WriteLine($"Name: {data.name}");
             foreach (dynamic mo in data.columns)
             {
                 Console.WriteLine($"Column: {mo.name}");
             }
-            Console.WriteLine("All main boards found listed above.");
-            throw new NotImplementedException();
+            Console.WriteLine(".");
+
+            /// get Work Items From Boards
+            string apiCallUrlWi = $"{azureDevOpsOrganizationUrl}/{projectName}/{teamName}/_apis/work/backlogs/{boardName}/workItems?api-version=7.2-preview.1";
+            var resultWi = GetResult(authHeader, apiCallUrlWi);
+            dynamic data2 = JObject.Parse(resultWi);
+            Console.WriteLine(data2.count);
+
         }
-
-        /// <summary>
-        /// Get all boards in the project that the authenticated user has access to and print the results.
-        /// </summary>
-        /// <param name="authHeader"></param>
-        private static void ListBoards(string token, string azureDevOpsOrganizationUrl, string project)
-        {
-            
-            string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{project}/Application Overview/_apis/work/boards?api-version=7.2-preview.1";
-            var result = GetResult(token, apiCallUrl);
-
-            dynamic data = JObject.Parse(result);
-            foreach (dynamic mo in data.value)
-            {
-                Console.WriteLine($"{mo.name} - {mo.id}");
-            }
-            Console.WriteLine("All main boards found listed above.");
-        }
-
-
 
 
         private static string GetResult(string authHeader, string apiToCall)
