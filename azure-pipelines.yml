@@ -98,15 +98,20 @@ stages:
           Install-Module -Name PowerShellForGitHub -AcceptLicense -Force
           Write-Host "Imported Module PowerShellForGitHub "
           
-          $pulls = Get-GitHubPullRequest -OwnerName nkdAgility -RepositoryName azure-devops-migration-tools -State Closed -Base preview
+          $pulls = Get-GitHubPullRequest -OwnerName nkdAgility -RepositoryName azure-devops-export-for-actionable-agile -State Closed -Base preview
           
           Write-Host "Found $($pulls.Count) pull requests on Preview"
           $pulls | ForEach-Object {Write-Host $_.title}
           Write-Host "----------"
           
           $VERSIONMESSAGE = $env:BUILD_SOURCEVERSIONMESSAGE
-          $VERSIONMESSAGE = $VERSIONMESSAGE.Substring(0, $VERSIONMESSAGE.LastIndexOf(" (#"))
-          
+          Write-Host "VERSIONMESSAGE: $VERSIONMESSAGE"
+          if ($VERSIONMESSAGE.Contains(" (#"))
+          {
+            $VERSIONMESSAGE = $VERSIONMESSAGE.Substring(0, $VERSIONMESSAGE.LastIndexOf(" (#"))
+            Write-Host "VERSIONMESSAGE: $VERSIONMESSAGE"
+          }         
+
           Write-Host "Looking for '$($VERSIONMESSAGE)'"
           $pull = $pulls | Where-Object {$_.title -eq $VERSIONMESSAGE}
           if ($pull -eq $null) {
