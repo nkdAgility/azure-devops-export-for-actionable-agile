@@ -6,6 +6,11 @@ using System.Threading.Tasks;
 
 namespace AzureDevOps.Export.ActionableAgile.ConsoleUI.DataContracts
 {
+    class WorkItemDataParent : WorkItemData
+    {
+        public List<WorkItemData>? Revisions { get; internal set; }
+        public dynamic WorkItemType { get; internal set; }
+    }
     class WorkItemData
     {
         public int Id { get; internal set; }
@@ -13,7 +18,6 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI.DataContracts
         public string? Tags { get; internal set; }
         public string? Title { get; internal set; }
         public DateTime ChangedDate { get; internal set; }
-        public List<WorkItemData> Revisions { get; internal set; }
         public string? ColumnField { get; internal set; }
         public string? RowField { get; internal set; }
         public string? DoneField { get; internal set; }
