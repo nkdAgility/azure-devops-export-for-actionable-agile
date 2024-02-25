@@ -348,35 +348,44 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
 
         private static string GetResult(string authHeader, string apiToCall)
         {
-
-
-            // use the httpclient
-            using (var client = new HttpClient())
+            try
             {
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                client.DefaultRequestHeaders.Add("User-Agent", "ManagedClientConsoleAppSample");
-                client.DefaultRequestHeaders.Add("X-TFS-FedAuthRedirect", "Suppress");
-                client.DefaultRequestHeaders.Add("Authorization", authHeader);
+                // use the httpclient
+                using (var client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Accept.Clear();
+                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    client.DefaultRequestHeaders.Add("User-Agent", "ManagedClientConsoleAppSample");
+                    client.DefaultRequestHeaders.Add("X-TFS-FedAuthRedirect", "Suppress");
+                    client.DefaultRequestHeaders.Add("Authorization", authHeader);
 
-                // connect to the REST endpoint            
-                HttpResponseMessage response = client.GetAsync(apiToCall).Result;
+                    // connect to the REST endpoint            
+                    HttpResponseMessage response = client.GetAsync(apiToCall).Result;
 
-                // check to see if we have a succesfull respond
-                if (response.IsSuccessStatusCode)
-                {
-                    return response.Content.ReadAsStringAsync().Result;
+                    // check to see if we have a succesfull respond
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return response.Content.ReadAsStringAsync().Result;
+                    }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        throw new UnauthorizedAccessException();
+                    }
+                    else
+                    {
+                        Console.WriteLine("Result::{0}:{1}", response.StatusCode, response.ReasonPhrase);
+                    }
                 }
-                else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
-                    throw new UnauthorizedAccessException();
-                }
-                else
-                {
-                    Console.WriteLine("Result::{0}:{1}", response.StatusCode, response.ReasonPhrase);
-                }
+                
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Call to: {apiToCall}");
+                Console.WriteLine(ex.Message);
+                throw ex;
             }
             return string.Empty;
+
         }
 
     }
