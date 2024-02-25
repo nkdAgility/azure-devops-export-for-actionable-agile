@@ -35,7 +35,7 @@ stages:
         scannerMode: 'MSBuild'
         projectKey: 'azure-devops-export-for-actionable-agile:main'
         projectName: 'azure-devops-export-for-actionable-agile'
-        projectVersion: '$(GITVERSION.SemVer)'
+        projectVersion: '$(GITVERSION.SemVer)' 
 
     - task: DotNetCoreCLI@2
       inputs:
