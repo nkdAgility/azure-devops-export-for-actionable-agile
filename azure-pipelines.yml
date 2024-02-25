@@ -57,7 +57,7 @@ stages:
       enabled: false
     - task: CopyFiles@2
       inputs:
-        SourceFolder: '$(Build.SourcesDirectory)\src\AzureDevOps.Export.ActionableAgile.ConsoleUI\bin\Release\net8.0\'
+        SourceFolder: '$(Build.SourcesDirectory)\src\AzureDevOps.Export.ActionableAgile.ConsoleUI\bin\Debug\net8.0\'
         Contents: '**'
         TargetFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
 
