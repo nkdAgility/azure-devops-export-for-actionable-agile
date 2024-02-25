@@ -40,7 +40,7 @@ stages:
     - task: DotNetCoreCLI@2
       inputs:
         command: 'build'
-        arguments: '-c $(BuildConfiguration) --no-restore /p:Version=$(GitVersion.AssemblySemVer)'
+        arguments: 
 
     - task: SonarCloudAnalyze@1
       inputs:
