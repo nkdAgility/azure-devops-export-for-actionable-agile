@@ -91,6 +91,32 @@ stages:
         Contents: '\drop\AzureDevOps.Export.ActionableAgile*.zip'
         TargetFolder: '$(build.artifactstagingdirectory)'
 
+    - task: PowerShell@2
+      inputs:
+        targetType: 'inline'
+        script: |
+          Install-Module -Name PowerShellForGitHub -AcceptLicense -Force
+          Write-Host "Imported Module PowerShellForGitHub "
+          
+          $pulls = Get-GitHubPullRequest -OwnerName nkdAgility -RepositoryName azure-devops-migration-tools -State Closed -Base preview
+          
+          Write-Host "Found $($pulls.Count) pull requests on Preview"
+          $pulls | ForEach-Object {Write-Host $_.title}
+          Write-Host "----------"
+          
+          $VERSIONMESSAGE = $env:BUILD_SOURCEVERSIONMESSAGE
+          $VERSIONMESSAGE = $VERSIONMESSAGE.Substring(0, $VERSIONMESSAGE.LastIndexOf(" (#"))
+          
+          Write-Host "Looking for '$($VERSIONMESSAGE)'"
+          $pull = $pulls | Where-Object {$_.title -eq $VERSIONMESSAGE}
+          if ($pull -eq $null) {
+              Write-Host "No PR found for '$($VERSIONMESSAGE)'"
+              exit 1
+          }
+          Write-Host "Found PR $($pull.PullRequestNumber) <---"
+          
+          Write-Host "##vso[task.setvariable variable=prbody;]$($pull.body)"
+
     - task: GitHubRelease@1
       inputs:
         gitHubConnection: 'GitHub connection 4'
@@ -99,11 +125,11 @@ stages:
         target: '$(Build.SourceVersion)'
         tagSource: 'userSpecifiedTag'
         tag: '$(Build.BuildNumber)'
-        title: 'v$(Build.BuildNumber) - $(BUILD_SOURCEVERSIONMESSAGE)'
+        title: 'v$(Build.BuildNumber) - $(Build.SourceVersionMessage)'
         releaseNotesSource: 'inline'
         releaseNotesInline: |
           $(prbody)
           
-          $(BUILD_SOURCEVERSIONMESSAGE) for $(BUILD_SOURCEVERSIONAUTHOR)
+          $(Build.SourceVersionMessage) for $(Build.SourceVersionAuthor)
         changeLogCompareToRelease: 'lastFullRelease'
         changeLogType: 'issueBased'
