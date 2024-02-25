@@ -87,4 +87,5 @@ stages:
         repository: 'azure-devops-export-for-actionable-agile'
         token: '$(github-release-token)'
         tagName: '$(Build.BuildNumber)'
-        targetDirectory: '$(System.ArtifactsDirectory)'
+        targetDirectory: '$(System.ArtifactsDirectory)/drop/AzureDevOps.Export.ActionableAgile*.zip
+'
