@@ -73,7 +73,7 @@ stages:
         publishLocation: 'Container'
 - stage: Release
   jobs:
-  - job: CIWork
+  - job: GitHubRelease
     steps:
     - task: DownloadBuildArtifacts@1
       inputs:
