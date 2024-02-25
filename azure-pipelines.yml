@@ -9,60 +9,69 @@ trigger:
 pool:
   vmImage: windows-latest
 
-steps:
-- task: gitversion/setup@0
-  inputs:
-    versionSpec: '5.x'
-- task: gitversion/execute@0
-  inputs:
-    useConfigFile: true
-    configFilePath: 'GitVersion.yml'
-    updateAssemblyInfo: true
-- task: DotNetCoreCLI@2
-  inputs:
-    command: 'restore'
-    projects: '**/*.sln'
-    feedsToUse: 'select'
-- task: SonarCloudPrepare@1
-  inputs:
-    SonarCloud: 'Martins Sonar Cloud'
-    organization: 'nkdagility'
-    scannerMode: 'MSBuild'
-    projectKey: 'azure-devops-export-for-actionable-agile:master'
-    projectName: 'azure-devops-export-for-actionable-agile'
-    projectVersion: '$(GITVERSION.SemVer)'
+stages:
+- stage: CI
+  jobs:
+  - job: CIWork
 
-- task: DotNetCoreCLI@2
-  inputs:
-    command: 'build'
-    arguments: '-c $(BuildConfiguration) --no-restore /p:Version=$(GitVersion.AssemblySemVer)'
+    steps:
+    - task: gitversion/setup@0
+      inputs:
+        versionSpec: '5.x'
+    - task: gitversion/execute@0
+      inputs:
+        useConfigFile: true
+        configFilePath: 'GitVersion.yml'
+        updateAssemblyInfo: true
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: 'restore'
+        projects: '**/*.sln'
+        feedsToUse: 'select'
+    - task: SonarCloudPrepare@1
+      inputs:
+        SonarCloud: 'Martins Sonar Cloud'
+        organization: 'nkdagility'
+        scannerMode: 'MSBuild'
+        projectKey: 'azure-devops-export-for-actionable-agile:master'
+        projectName: 'azure-devops-export-for-actionable-agile'
+        projectVersion: '$(GITVERSION.SemVer)'
 
-- task: SonarCloudAnalyze@1
-  inputs:
-    jdkversion: 'JAVA_HOME_17_X64'
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: 'build'
+        arguments: '-c $(BuildConfiguration) --no-restore /p:Version=$(GitVersion.AssemblySemVer)'
 
-- task: PublishSymbols@2
-  inputs:
-    SearchPattern: '**/bin/**/*.pdb'
-    SymbolServerType: 'TeamServices'
+    - task: SonarCloudAnalyze@1
+      inputs:
+        jdkversion: 'JAVA_HOME_17_X64'
 
-- task: CopyFiles@2
-  inputs:
-    SourceFolder: '$(Build.SourcesDirectory)\src\AzureDevOps.Export.ActionableAgile.ConsoleUI\bin\Release\net8.0\'
-    Contents: '**'
-    TargetFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
+    - task: PublishSymbols@2
+      inputs:
+        SearchPattern: '**/bin/**/*.pdb'
+        SymbolServerType: 'TeamServices'
 
-- task: zip@0
-  inputs:
-    pathToZipFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
-    pathToZipFile: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile-$(GITVERSION.SemVer).zip'
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)\src\AzureDevOps.Export.ActionableAgile.ConsoleUI\bin\Release\net8.0\'
+        Contents: '**'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
 
-- task: CopyPublishBuildArtifacts@1
-  inputs:
-    Contents: '$(build.artifactstagingdirectory)'
-    ArtifactName: 'drop'
-    ArtifactType: 'Container'
+    - task: zip@0
+      inputs:
+        pathToZipFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
+        pathToZipFile: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile-$(GITVERSION.SemVer).zip'
 
-- task: SonarCloudPublish@1
-  inputs:
-    pollingTimeoutSec: '300'
+    - task: CopyPublishBuildArtifacts@1
+      inputs:
+        Contents: '$(build.artifactstagingdirectory)'
+        ArtifactName: 'drop'
+        ArtifactType: 'Container'
+
+    - task: SonarCloudPublish@1
+      inputs:
+        pollingTimeoutSec: '300'
+
+- stage: Release
+  jobs:
+  - job: CIWork
