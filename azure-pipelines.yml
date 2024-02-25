@@ -90,13 +90,19 @@ stages:
         SourceFolder: '$(System.ArtifactsDirectory)'
         Contents: '\drop\AzureDevOps.Export.ActionableAgile*.zip'
         TargetFolder: '$(build.artifactstagingdirectory)'
-    - task: gitreleasemanager/setup@0
+
+    - task: GitHubRelease@1
       inputs:
-        versionSpec: '0.10.x'
-    - task: gitreleasemanager/publish@0
-      inputs:
-        owner: 'nkdagility'
-        repository: 'azure-devops-export-for-actionable-agile'
-        token: '$(github-release-token)'
-        tagName: '$(Build.BuildNumber)'
-        targetDirectory: '$(build.artifactstagingdirectory)'
+        gitHubConnection: 'GitHub connection 4'
+        repositoryName: 'nkdAgility/azure-devops-export-for-actionable-agile'
+        action: 'create'
+        target: '$(Build.BuildNumber)'
+        tagSource: 'gitTag'
+        title: 'v$(Build.BuildNumber) - $(BUILD_SOURCEVERSIONMESSAGE)'
+        releaseNotesSource: 'inline'
+        releaseNotesInline: |
+          $(prbody)
+          
+          $(BUILD_SOURCEVERSIONMESSAGE) for $(BUILD_SOURCEVERSIONAUTHOR)
+        changeLogCompareToRelease: 'lastFullRelease'
+        changeLogType: 'issueBased'
