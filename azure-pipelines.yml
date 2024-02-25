@@ -96,8 +96,9 @@ stages:
         gitHubConnection: 'GitHub connection 4'
         repositoryName: 'nkdAgility/azure-devops-export-for-actionable-agile'
         action: 'create'
-        target: '$(Build.BuildNumber)'
-        tagSource: 'gitTag'
+        target: '$(Build.SourceVersion)'
+        tagSource: 'userSpecifiedTag'
+        tag: '$(Build.BuildNumber)'
         title: 'v$(Build.BuildNumber) - $(BUILD_SOURCEVERSIONMESSAGE)'
         releaseNotesSource: 'inline'
         releaseNotesInline: |
