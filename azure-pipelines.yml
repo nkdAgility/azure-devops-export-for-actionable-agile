@@ -88,4 +88,3 @@ stages:
         token: '$(github-release-token)'
         tagName: '$(Build.BuildNumber)'
         targetDirectory: '$(build.artifactstagingdirectory)'
-'
