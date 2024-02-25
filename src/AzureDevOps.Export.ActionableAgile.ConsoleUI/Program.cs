@@ -21,11 +21,12 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
 {
     internal class Program
     {
-
+        
         static async Task<int> Main(string[] args)
         {
             var tokenOption = new Option<String?>("--token", "The auth token to use.");
             var organizationUrlOption = new Option<String?>("--org", "The Organisation to connect to.");
+            organizationUrlOption.IsRequired = true;
             var projectNameOption = new Option<String?>("--project", "The Organisation to connect to.");
             var teamNameOption = new Option<String?>("--team", "The Organisation to connect to.");
             var boardNameOption = new Option<String?>("--board", "The Organisation to connect to.");
@@ -53,6 +54,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         {
             var authTool = new Authenticator();
             var authHeader = authTool.AuthenticationCommand(token).Result;
+            AzureDevOpsApi api = new AzureDevOpsApi(authHeader, azureDevOpsOrganizationUrl);
             ProjectItem? projectItem = null;
             TeamItem? teamItem = null;
             BoardItem? boardItem = null;
@@ -63,7 +65,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
             teamItem = GetTeamName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamName);
             WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
-            boardItem = GetBoardName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardName);
+            boardItem = GetBoardName(api, projectItem, teamItem, boardName);
             WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
             backlogItem = GetBacklogName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem.name);
             WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
@@ -108,15 +110,12 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         }
 
 
-        private static BoardItem GetBoardName(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, TeamItem teamItem, string boardName)
+        private static BoardItem GetBoardName(AzureDevOpsApi api, ProjectItem projectItem, TeamItem teamItem, string boardName)
         {
             BoardItem? boardItem = null;
             if (boardName != null)
             {
-
-                //GET https://dev.azure.com/{organization}/{project}/{team}/_apis/work/boards/{id}?api-version=7.2-preview.1
-                string apiGetSingle = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamItem.id}/_apis/work/boards/{boardName}?api-version=7.2-preview.1";
-                var singleResult = GetResult(authHeader, apiGetSingle);
+                var singleResult = api.GetBoard(projectItem.id, teamItem.id, boardName).Result;  
                 if (string.IsNullOrEmpty(singleResult))
                 {
                     boardItem = null;
@@ -128,9 +127,8 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             }
             if (boardItem == null)
             {
-                //GET https://dev.azure.com/{organization}/{project}/{team}/_apis/work/boards?api-version=7.2-preview.1
-                string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamItem.id}/_apis/work/boards?api-version=7.2-preview.1";
-                var result = GetResult(authHeader, apiCallUrl);
+                
+                var result = api.GetBoards(projectItem.id, teamItem.id).Result;
 
                 var boardItems = JsonConvert.DeserializeObject<BoardItems>(result);
 
