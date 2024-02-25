@@ -66,12 +66,11 @@ stages:
         pathToZipFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
         pathToZipFile: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile-$(GITVERSION.SemVer).zip'
 
-    - task: CopyPublishBuildArtifacts@1
+    - task: PublishPipelineArtifact@1
       inputs:
-        Contents: '$(build.artifactstagingdirectory)'
-        ArtifactName: 'drop'
-        ArtifactType: 'Container'
-
+        targetPath: '$(build.artifactstagingdirectory)'
+        artifact: 'drop'
+        publishLocation: 'pipeline'
 - stage: Release
   jobs:
   - job: CIWork
