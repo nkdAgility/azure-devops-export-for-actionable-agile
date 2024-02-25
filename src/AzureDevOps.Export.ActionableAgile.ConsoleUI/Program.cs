@@ -29,6 +29,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             var projectNameOption = new Option<String?>("--project", "The Organisation to connect to.");
             var teamNameOption = new Option<String?>("--team", "The Organisation to connect to.");
             var boardNameOption = new Option<String?>("--board", "The Organisation to connect to.");
+            var outputOption = new Option<String?>("--output", "Where to output the file to.");
 
             var rootCommand = new RootCommand("Sample app for System.CommandLine");
             rootCommand.Add(organizationUrlOption);
@@ -36,18 +37,19 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             rootCommand.Add(teamNameOption);
             rootCommand.Add(projectNameOption);
             rootCommand.Add(boardNameOption);
+            rootCommand.Add(outputOption);
 
 
-            rootCommand.SetHandler(async (token, azureDevOpsOrganizationUrl, projectName, teamName, boardName) =>
+            rootCommand.SetHandler(async (token, azureDevOpsOrganizationUrl, projectName, teamName, boardName, output) =>
             {
-                ExecuteCommand(token, azureDevOpsOrganizationUrl, projectName, teamName, boardName);
-            }, tokenOption, organizationUrlOption, projectNameOption, teamNameOption, boardNameOption);
+                ExecuteCommand(token, azureDevOpsOrganizationUrl, projectName, teamName, boardName, output);
+            }, tokenOption, organizationUrlOption, projectNameOption, teamNameOption, boardNameOption, outputOption);
 
             return await rootCommand.InvokeAsync(args);
 
         }
 
-        private static void ExecuteCommand(string token, string azureDevOpsOrganizationUrl, string projectName, string teamName, string boardName)
+        private static void ExecuteCommand(string token, string azureDevOpsOrganizationUrl, string projectName, string teamName, string boardName, string output)
         {
             var authTool = new Authenticator();
             var authHeader = authTool.AuthenticationCommand(token).Result;
@@ -66,7 +68,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             backlogItem = GetBacklogName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem.name);
             WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
 
-            ExportData(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
+            ExportData(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem, output);
         }
 
         private static BacklogItem? GetBacklogName(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, TeamItem teamItem, string backlogName)
@@ -213,7 +215,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             return projectItem;
         }
 
-        private static void ExportData(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, TeamItem teamItem, BoardItem boardItem, BacklogItem backlogItem)
+        private static void ExportData(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, TeamItem teamItem, BoardItem boardItem, BacklogItem backlogItem, string output)
         {
 
 
@@ -228,30 +230,31 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             foreach (WorkItemElement wi in workItems.workItems)
             {
                 WorkItemDataParent witData = GetWorkItemData(authHeader, azureDevOpsOrganizationUrl, projectItem, boardItem, fields, wi);
-                Console.WriteLine($"Loaded {witData.Revisions.Count} revisions for {witData.Id}");
+               Console.WriteLine($"Loaded {witData.Revisions.Count} revisions for {witData.Id}");
 
 
                 var recordCsv = new ExpandoObject() as IDictionary<string, Object>;
                 recordCsv.Add("Id", witData.Id);
                 recordCsv.Add("Name", witData.Title);
 
+
+                DateTime recordLatest = DateTime.MinValue;
                 // Find highest date for each column...
                 foreach (BoardItem_Column bic in boardItem.columns)
                 {
-                    var revsforColumn = witData.Revisions.Where(item => item.ColumnField == bic.name).Select(item => item);
-                    if (revsforColumn.Count() > 0)
+                    if (bic.isSplit)
                     {
+                        // Console.WriteLine($"{bic.name}:{witData.Id}=Is Split");
+                        var revsforColumn = witData.Revisions.Where(item => item.ColumnField == bic.name && item.DoneField == false).Select(item => item);
+                        recordLatest = AddColumnToCsv(recordCsv, recordLatest, $"{bic.name} Doing", revsforColumn);
 
-                        var finalForColumn = revsforColumn.Last();
-
-                        recordCsv.Add(bic.name, finalForColumn.ChangedDate);
-
-                        //Console.WriteLine($"{bic.name}:{witData.Id}={finalForColumn.ChangedDate.ToString()}");
+                        var revsforColumn2 = witData.Revisions.Where(item => item.ColumnField == bic.name && item.DoneField == true).Select(item => item);
+                        recordLatest = AddColumnToCsv(recordCsv, recordLatest, $"{bic.name} Done", revsforColumn);
                     }
                     else
                     {
-                        recordCsv.Add(bic.name, null);
-                        //Console.WriteLine($"{bic.name}:{witData.Id}=null");
+                        var revsforColumn = witData.Revisions.Where(item => item.ColumnField == bic.name).Select(item => item);
+                        recordLatest = AddColumnToCsv(recordCsv, recordLatest, bic.name, revsforColumn);
                     }
 
                 }
@@ -268,9 +271,37 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
                 csv.WriteRecords(recordsCSV);
-
+                var outPath = Path.Combine(output);
                 Console.WriteLine(writer.ToString());
+                System.IO.File.WriteAllText(outPath, writer.ToString());
             }
+        }
+
+        private static DateTime AddColumnToCsv(IDictionary<string, object> recordCsv, DateTime recordLatest, string columnName, IEnumerable<WorkItemData> revsforColumn)
+        {
+            if (revsforColumn.Count() > 0)
+            {
+                var finalForColumn = revsforColumn.Last();
+                if (finalForColumn.ChangedDate > recordLatest)
+                {
+                    recordCsv.Add(columnName, finalForColumn.ChangedDate);
+                    recordLatest = finalForColumn.ChangedDate;
+                    // Console.WriteLine($"{columnName}:{witData.Id}={finalForColumn.ChangedDate.ToString()}");
+                }
+                else
+                {
+                    //skipping
+                    // Console.WriteLine($"{columnName}:{witData.Id}={finalForColumn.ChangedDate.ToString() SKIPP AS NOT LATEST");
+                }
+
+            }
+            else
+            {
+                recordCsv.Add(columnName, null);
+                //Console.WriteLine($"{columnName}:{witData.Id}=null");
+            }
+
+            return recordLatest;
         }
 
         private static WorkItemDataParent GetWorkItemData(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, BoardItem boardItem, string fields, WorkItemElement wi)
@@ -308,7 +339,8 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
                 witRevData.Tags = (string)jsonfields["System.Tags"];
                 witRevData.ColumnField = (string)jsonfields[boardItem.fields.columnField.referenceName];
                 witRevData.RowField = (string)jsonfields[boardItem.fields.rowField.referenceName];
-                witRevData.DoneField = (string)jsonfields[boardItem.fields.doneField.referenceName];
+
+                witRevData.DoneField = jsonfields[boardItem.fields.doneField.referenceName]?.ToObject<bool>();
                 witData.Revisions.Add(witRevData);
             }
 

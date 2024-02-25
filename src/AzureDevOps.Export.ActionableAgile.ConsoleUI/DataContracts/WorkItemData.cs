@@ -20,6 +20,6 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI.DataContracts
         public DateTime ChangedDate { get; internal set; }
         public string? ColumnField { get; internal set; }
         public string? RowField { get; internal set; }
-        public string? DoneField { get; internal set; }
+        public bool? DoneField { get; internal set; }
     }
 }
