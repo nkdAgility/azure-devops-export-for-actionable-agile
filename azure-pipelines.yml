@@ -53,9 +53,6 @@ stages:
     - task: SonarCloudPublish@1
       inputs:
         pollingTimeoutSec: '300'
-        
-  - job: Package
-    steps:
     - task: CopyFiles@2
       inputs:
         SourceFolder: '$(Build.SourcesDirectory)\src\AzureDevOps.Export.ActionableAgile.ConsoleUI\bin\Release\net8.0\'
