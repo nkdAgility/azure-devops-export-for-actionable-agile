@@ -47,69 +47,99 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             var authTool = new Authenticator();
             var authHeader = authTool.AuthenticationCommand(token).Result;
             ProjectItem? projectItem = null;
+            TeamItem? teamItem = null;
+            BoardItem? boardItem = null;
+            BacklogItem? backlogItem =   null;
 
-            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamName, boardName);
+            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
             projectItem = GetProjectName(authHeader, azureDevOpsOrganizationUrl, projectName);
-            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamName, boardName);
-            teamName = GetTeamName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamName);
-            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamName, boardName);
-            boardName = GetBoardName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamName, boardName);
-            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamName, boardName);
+            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
+            teamItem = GetTeamName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamName);
+            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
+            boardItem = GetBoardName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardName);
+            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
+            backlogItem = GetBacklogName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem.name);
+            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
 
-            ExportData(authHeader, azureDevOpsOrganizationUrl, projectItem, teamName, boardName);
+            ExportData(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
         }
 
-        private static void WriteCurrentStatus(string azureDevOpsOrganizationUrl, ProjectItem? projectItem, string teamName, string boardName)
+        private static BacklogItem? GetBacklogName(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, TeamItem teamItem, string backlogName)
+        {
+            BacklogItem? backlogItem = null;
+            //GET https://dev.azure.com/{organization}/{project}/{team}/_apis/work/backlogs?api-version=7.2-preview.1
+            string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamItem.id}/_apis/work/backlogs?api-version=7.2-preview.1";
+            var result = GetResult(authHeader, apiCallUrl);
+            var backlogItems = JsonConvert.DeserializeObject<BacklogItems>(result);
+
+            backlogItem = backlogItems.value.SingleOrDefault(pi => pi.name == backlogName);
+
+            if (backlogItem == null)
+            {
+                CommandLineChooser chooser = new CommandLineChooser("Backlogs");
+                foreach (BacklogItem bi in backlogItems.value)
+                {
+                    chooser.Add(new CommandLineChoice(bi.name, bi.id));
+                }
+                backlogItem = backlogItems.value.SingleOrDefault(pi => pi.id == chooser.Choose()?.Id);
+            }
+            return backlogItem;
+        }
+
+        private static void WriteCurrentStatus(string azureDevOpsOrganizationUrl, ProjectItem? projectItem, TeamItem? teamItem, BoardItem boardItem, BacklogItem backlogItem)
         {
             Console.Clear();
             Console.WriteLine("Azure DevOps Export for Actionable Agile");
             Console.WriteLine("================");
             Console.WriteLine($"Org: {azureDevOpsOrganizationUrl}");
             Console.WriteLine($"Project: {projectItem?.name} // {projectItem?.id}");
-            Console.WriteLine($"Team: {teamName}");
-            Console.WriteLine($"Board: {boardName}");
+            Console.WriteLine($"Team: {teamItem?.name} // {teamItem?.id}" );
+            Console.WriteLine($"Board: {boardItem?.name} // {boardItem?.id}");
+            Console.WriteLine($"Backlog: {backlogItem?.name} // {backlogItem?.id}");
             Console.WriteLine("================");
 
         }
 
 
-        private static string GetBoardName(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, string teamName, string boardName)
+        private static BoardItem GetBoardName(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, TeamItem teamItem, string boardName)
         {
+            BoardItem? boardItem = null;
             if (boardName != null)
             {
 
                 //GET https://dev.azure.com/{organization}/{project}/{team}/_apis/work/boards/{id}?api-version=7.2-preview.1
-                string apiGetSingle = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamName}/_apis/work/boards/{boardName}?api-version=7.2-preview.1";
+                string apiGetSingle = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamItem.id}/_apis/work/boards/{boardName}?api-version=7.2-preview.1";
                 var singleResult = GetResult(authHeader, apiGetSingle);
                 if (string.IsNullOrEmpty(singleResult))
                 {
-                    boardName = string.Empty;
+                    boardItem = null;
                 }
                 else
                 {
-                    dynamic data = JObject.Parse(singleResult);
-                    boardName = data.name;
+                    boardItem = JsonConvert.DeserializeObject<BoardItem>(singleResult);
                 }
             }
-            if (string.IsNullOrEmpty(boardName))
+            if (boardItem == null)
             {
                 //GET https://dev.azure.com/{organization}/{project}/{team}/_apis/work/boards?api-version=7.2-preview.1
-                string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamName}/_apis/work/boards?api-version=7.2-preview.1";
+                string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamItem.id}/_apis/work/boards?api-version=7.2-preview.1";
                 var result = GetResult(authHeader, apiCallUrl);
-                dynamic data = JObject.Parse(result);
+
+                var boardItems = JsonConvert.DeserializeObject<BoardItems>(result);
 
                 CommandLineChooser chooser = new CommandLineChooser("Boards");
-                foreach (dynamic mo in data.value)
+                foreach (BoardItem bi in boardItems.value)
                 {
-                    chooser.Add(new CommandLineChoice(mo.name, mo.id));
+                    chooser.Add(new CommandLineChoice(bi.name, bi.id));
                 }
-                boardName = chooser.Choose()?.Id;
+                boardItem= boardItems.value.SingleOrDefault(pi => pi.name == chooser.Choose()?.Name);
             }
-            return boardName;
+            return boardItem;
         }
 
-        private static string GetTeamName(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, string teamName)
+        private static TeamItem GetTeamName(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, string teamName)
         {
+            TeamItem? teamItem = null;
             if (teamName != null)
             {
 
@@ -118,29 +148,30 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
                 var singleResult = GetResult(authHeader, apiGetSingle);
                 if (string.IsNullOrEmpty(singleResult))
                 {
-                    teamName = string.Empty;
+                    teamItem = null;
                 }
                 else
                 {
-                    dynamic data = JObject.Parse(singleResult);
-                    teamName = data.name;
+                    teamItem = JsonConvert.DeserializeObject<TeamItem>(singleResult);
                 }
             }
-            if (string.IsNullOrEmpty(teamName))
+            if (teamItem == null)
             {
                 //GET https://dev.azure.com/{organization}/_apis/projects/{projectId}/teams?api-version=7.2-preview.3
                 string apiCallUrl = $"{azureDevOpsOrganizationUrl}/_apis/projects/{projectItem.id}/teams?api-version=7.2-preview.3";
                 var result = GetResult(authHeader, apiCallUrl);
-                dynamic data = JObject.Parse(result);
+
+                var teamItems = JsonConvert.DeserializeObject<TeamItems>(result);
 
                 CommandLineChooser chooser = new CommandLineChooser("Team");
-                foreach (dynamic mo in data.value)
+                foreach (TeamItem ti in teamItems.value)
                 {
-                    chooser.Add(new CommandLineChoice(mo.name, mo.id));
+                    chooser.Add(new CommandLineChoice(ti.name, ti.id));
                 }
-                teamName = chooser.Choose()?.Name;
+                return teamItems.value.SingleOrDefault(pi => pi.name == chooser.Choose()?.Name);
+
             }
-            return teamName;
+            return teamItem;
         }
 
         private static ProjectItem? GetProjectName(string authHeader, string azureDevOpsOrganizationUrl, string? projectName)
@@ -170,34 +201,77 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
                 {
                     chooser.Add(new CommandLineChoice(pi.name, pi.id));
                 }
-                projectName = chooser.Choose()?.Name;
-
-               return projectItems.value.SingleOrDefault(pi => pi.name == projectName);
+               return projectItems.value.SingleOrDefault(pi => pi.name == chooser.Choose()?.Name);
 
             }
             return projectItem;
         }
 
-        private static void ExportData(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem? projectItem, string teamName, string boardName)
+        private static void ExportData(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, TeamItem teamItem, BoardItem boardItem, BacklogItem backlogItem)
         {
-            //GET https://dev.azure.com/{organization}/{project}/{team}/_apis/work/boards/{id}?api-version=7.2-preview.1
-            string apiCallUrl = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamName}/_apis/work/boards/{boardName}?api-version=7.2-preview.1";
-            var result = GetResult(authHeader, apiCallUrl);
-
-            dynamic data = JObject.Parse(result);
-
-            Console.WriteLine($"Name: {data.name}");
-            foreach (dynamic mo in data.columns)
+            Console.WriteLine($"Name: {boardItem.name}");
+            foreach (BoardItem_Column bic in boardItem.columns)
             {
-                Console.WriteLine($"Column: {mo.name}");
+                Console.WriteLine($"Column: {bic.name}");
             }
-            Console.WriteLine(".");
+            Console.WriteLine("...");
 
             /// get Work Items From Boards
-            string apiCallUrlWi = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamName}/_apis/work/backlogs/{boardName}/workItems?api-version=7.2-preview.1";
+            string apiCallUrlWi = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamItem.id}/_apis/work/backlogs/{backlogItem.id}/workItems?api-version=7.2-preview.1";
             var resultWi = GetResult(authHeader, apiCallUrlWi);
-            dynamic data2 = JObject.Parse(resultWi);
-            Console.WriteLine(data2.count);
+            WorkItems workItems = JsonConvert.DeserializeObject<WorkItems>(resultWi);
+
+            string fields = $"{boardItem.fields.columnField.referenceName},{boardItem.fields.rowField.referenceName},{boardItem.fields.doneField.referenceName}";
+
+            foreach (WorkItemElement wi in workItems.workItems)
+            {
+                //GET https://dev.azure.com/{organization}/{project}/_apis/wit/workitems/{id}?$expand=fields&api-version=7.2-preview.3
+
+                string apiCallUrlWiSingle = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/_apis/wit/workitems/{wi.target.id}?$fields={fields}&api-version=7.2-preview.3";
+                var single = GetResult(authHeader, apiCallUrlWiSingle);
+                var jsonsingle = JsonConvert.DeserializeObject<JObject>(single);
+                WorkItemData witData = new WorkItemData();
+                witData.Id = jsonsingle.SelectToken("id").Value<int>();
+                witData.Rev = jsonsingle.SelectToken("rev").Value<int>();
+                witData.Title = jsonsingle.SelectToken("fields.['System.Title']")?.Value<string>();
+                witData.ChangedDate = jsonsingle.SelectToken("fields.['System.ChangedDate']").Value<DateTime>();
+                witData.Tags = jsonsingle.SelectToken("fields.['System.Tags']")?.Value<string>();
+                witData.Revisions = new List<WorkItemData>();
+
+                //GET https://dev.azure.com/{organization}/{project}/_apis/wit/workItems/{id}/revisions?$top={$top}&$skip={$skip}&$expand={$expand}&api-version=7.2-preview.3
+                string apiCallUrlWiRevisions= $"{azureDevOpsOrganizationUrl}/{projectItem.id}/_apis/wit/workitems/{wi.target.id}/revisions?$expand=fields&api-version=7.2-preview.3";
+
+                var revs = GetResult(authHeader, apiCallUrlWiRevisions);
+
+
+                JObject revdata = JObject.Parse(revs);
+
+                var count = (int)revdata["count"];
+
+                for (int i = 0; i < count; i++)
+                {
+                    var jsonrev = revdata["value"][i];
+                    var witRevData = new WorkItemData();
+                    witRevData.Rev = (int)jsonrev["rev"];
+                    witRevData.Id = (int)jsonrev["id"];
+                    var jsonfields = revdata["value"][i]["fields"];
+                    witRevData.Title = (string)jsonfields["System.Title"];
+                    witRevData.ChangedDate = (DateTime)jsonfields["System.ChangedDate"];
+                    witRevData.Tags = (string)jsonfields["System.Tags"];
+                    witRevData.ColumnField = (string)jsonfields[boardItem.fields.columnField.referenceName];
+                    witRevData.RowField = (string)jsonfields[boardItem.fields.rowField.referenceName];
+                    witRevData.DoneField = (string)jsonfields[boardItem.fields.doneField.referenceName];
+                    witData.Revisions.Add(witRevData);
+                }
+                Console.WriteLine($"Loaded {count} revisions for {wi.target.id}");
+
+                // Find highest date for each column...
+
+
+
+
+            }
+            Console.WriteLine(workItems.workItems.ToList().Count);
 
         }
 

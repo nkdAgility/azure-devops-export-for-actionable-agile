@@ -2,7 +2,7 @@
   "profiles": {
     "AzureDevOps.Export.ActionableAgile.ConsoleUI": {
       "commandName": "Project",
-      "commandLineArgs": "--token 7av2veepg5mo45uikdtckv6mcqv3ayydekmirr2rear5dyfsahvq --org https://dev.azure.com/nkdagility-learn/ "
+      "commandLineArgs": "--org https://dev.azure.com/nkdagility-learn/ --project ApplicationDemo --team \"Application Overview\" --board Applications"
     }
   }
 }
