@@ -81,11 +81,16 @@ stages:
         downloadType: 'single'
         artifactName: 'drop'
         downloadPath: '$(System.ArtifactsDirectory)'
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(System.ArtifactsDirectory)'
+        Contents: '\drop\AzureDevOps.Export.ActionableAgile*.zip'
+        TargetFolder: '$(build.artifactstagingdirectory)'
     - task: gitreleasemanager/publish@0
       inputs:
         owner: 'nkdagility'
         repository: 'azure-devops-export-for-actionable-agile'
         token: '$(github-release-token)'
         tagName: '$(Build.BuildNumber)'
-        targetDirectory: '$(System.ArtifactsDirectory)\drop\AzureDevOps.Export.ActionableAgile*.zip
+        targetDirectory: '$(build.artifactstagingdirectory)'
 '
