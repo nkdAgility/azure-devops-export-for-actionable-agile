@@ -244,17 +244,17 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
                 {
                     if (bic.isSplit)
                     {
-                        // Console.WriteLine($"{bic.name}:{witData.Id}=Is Split");
+                        Console.WriteLine($"{bic.name}:{witData.Id}=Is Split");
                         var revsforColumn = witData.Revisions.Where(item => item.ColumnField == bic.name && item.DoneField == false).Select(item => item);
-                        recordLatest = AddColumnToCsv(recordCsv, recordLatest, $"{bic.name} Doing", revsforColumn);
+                        recordLatest = AddColumnToCsv(recordCsv, witData, recordLatest, $"{bic.name} Doing", revsforColumn);
 
                         var revsforColumn2 = witData.Revisions.Where(item => item.ColumnField == bic.name && item.DoneField == true).Select(item => item);
-                        recordLatest = AddColumnToCsv(recordCsv, recordLatest, $"{bic.name} Done", revsforColumn);
+                        recordLatest = AddColumnToCsv(recordCsv, witData, recordLatest, $"{bic.name} Done", revsforColumn);
                     }
                     else
                     {
                         var revsforColumn = witData.Revisions.Where(item => item.ColumnField == bic.name).Select(item => item);
-                        recordLatest = AddColumnToCsv(recordCsv, recordLatest, bic.name, revsforColumn);
+                        recordLatest = AddColumnToCsv(recordCsv, witData, recordLatest, bic.name, revsforColumn);
                     }
 
                 }
@@ -277,7 +277,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             }
         }
 
-        private static DateTime AddColumnToCsv(IDictionary<string, object> recordCsv, DateTime recordLatest, string columnName, IEnumerable<WorkItemData> revsforColumn)
+        private static DateTime AddColumnToCsv(IDictionary<string, object> recordCsv, WorkItemDataParent witData, DateTime recordLatest, string columnName, IEnumerable<WorkItemData> revsforColumn)
         {
             if (revsforColumn.Count() > 0)
             {
@@ -286,12 +286,13 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
                 {
                     recordCsv.Add(columnName, finalForColumn.ChangedDate);
                     recordLatest = finalForColumn.ChangedDate;
-                    // Console.WriteLine($"{columnName}:{witData.Id}={finalForColumn.ChangedDate.ToString()}");
+                    //Console.WriteLine($"{columnName}:{witData.Id}={finalForColumn.ChangedDate.ToString()}");
                 }
                 else
                 {
                     //skipping
-                    // Console.WriteLine($"{columnName}:{witData.Id}={finalForColumn.ChangedDate.ToString() SKIPP AS NOT LATEST");
+                    //Console.WriteLine($"{columnName}:{witData.Id}={finalForColumn.ChangedDate.ToString()} SKIPP AS NOT LATEST");
+                    recordCsv.Add(columnName, null);
                 }
 
             }
