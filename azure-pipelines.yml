@@ -12,7 +12,7 @@ pool:
 stages:
 - stage: CI
   jobs:
-  - job: CIWork
+  - job: Build
 
     steps:
     - task: gitversion/setup@0
@@ -50,7 +50,12 @@ stages:
       inputs:
         SearchPattern: '**/bin/**/*.pdb'
         SymbolServerType: 'TeamServices'
-
+    - task: SonarCloudPublish@1
+      inputs:
+        pollingTimeoutSec: '300'
+        
+  - job: Package
+    steps:
     - task: CopyFiles@2
       inputs:
         SourceFolder: '$(Build.SourcesDirectory)\src\AzureDevOps.Export.ActionableAgile.ConsoleUI\bin\Release\net8.0\'
@@ -67,10 +72,6 @@ stages:
         Contents: '$(build.artifactstagingdirectory)'
         ArtifactName: 'drop'
         ArtifactType: 'Container'
-
-    - task: SonarCloudPublish@1
-      inputs:
-        pollingTimeoutSec: '300'
 
 - stage: Release
   jobs:
