@@ -81,6 +81,9 @@ stages:
         SourceFolder: '$(System.ArtifactsDirectory)'
         Contents: '\drop\AzureDevOps.Export.ActionableAgile*.zip'
         TargetFolder: '$(build.artifactstagingdirectory)'
+    - task: gitreleasemanager/setup@0
+      inputs:
+        versionSpec: '0.10.x'
     - task: gitreleasemanager/publish@0
       inputs:
         owner: 'nkdagility'
@@ -88,3 +91,4 @@ stages:
         token: '$(github-release-token)'
         tagName: '$(Build.BuildNumber)'
         targetDirectory: '$(build.artifactstagingdirectory)'
+    
