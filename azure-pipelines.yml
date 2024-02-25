@@ -6,6 +6,13 @@
 trigger:
 - main
 
+pr:
+- main
+- develop
+
+variables:
+  isMain: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+
 pool:
   vmImage: windows-latest
 
@@ -66,9 +73,11 @@ stages:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
         ArtifactName: 'drop'
         publishLocation: 'Container'
+
 - stage: Release
   jobs:
   - job: GitHubRelease
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     steps:
     - task: DownloadBuildArtifacts@1
       inputs:
@@ -91,4 +100,3 @@ stages:
         token: '$(github-release-token)'
         tagName: '$(Build.BuildNumber)'
         targetDirectory: '$(build.artifactstagingdirectory)'
-    
