@@ -55,16 +55,11 @@ stages:
       inputs:
         pollingTimeoutSec: '300'
       enabled: false
-    - task: CopyFiles@2
-      inputs:
-        SourceFolder: '$(Build.SourcesDirectory)\src\AzureDevOps.Export.ActionableAgile.ConsoleUI\bin\Debug\net8.0\'
-        Contents: '**'
-        TargetFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
 
     - task: zip@0
       inputs:
-        pathToZipFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
-        pathToZipFile: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile-$(GITVERSION.SemVer).zip'
+        pathToZipFolder: '$(Build.SourcesDirectory)\src\AzureDevOps.Export.ActionableAgile.ConsoleUI\bin\Debug\net8.0\'
+        pathToZipFile: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile-v$(GITVERSION.SemVer).zip'
 
     - task: PublishBuildArtifacts@1
       inputs:
