@@ -66,11 +66,25 @@ stages:
         pathToZipFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
         pathToZipFile: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile-$(GITVERSION.SemVer).zip'
 
-    - task: PublishPipelineArtifact@1
+    - task: PublishBuildArtifacts@1
       inputs:
-        targetPath: '$(build.artifactstagingdirectory)'
-        artifact: 'drop'
-        publishLocation: 'pipeline'
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
 - stage: Release
   jobs:
   - job: CIWork
+    steps:
+    - task: DownloadBuildArtifacts@1
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'drop'
+        downloadPath: '$(System.ArtifactsDirectory)'
+    - task: gitreleasemanager/publish@0
+      inputs:
+        owner: 'nkdagility'
+        repository: 'azure-devops-export-for-actionable-agile'
+        token: '$(github-release-token)'
+        tagName: '$(Build.BuildNumber)'
+        targetDirectory: '$(System.ArtifactsDirectory)'
