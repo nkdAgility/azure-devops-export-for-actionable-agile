@@ -1,0 +1,68 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+
+pool:
+  vmImage: windows-latest
+
+steps:
+- task: gitversion/setup@0
+  inputs:
+    versionSpec: '5.x'
+- task: gitversion/execute@0
+  inputs:
+    useConfigFile: true
+    configFilePath: 'GitVersion.yml'
+    updateAssemblyInfo: true
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'restore'
+    projects: '**/*.sln'
+    feedsToUse: 'select'
+- task: SonarCloudPrepare@1
+  inputs:
+    SonarCloud: 'Martins Sonar Cloud'
+    organization: 'nkdagility'
+    scannerMode: 'MSBuild'
+    projectKey: 'azure-devops-export-for-actionable-agile:master'
+    projectName: 'azure-devops-export-for-actionable-agile'
+    projectVersion: '$(GITVERSION.SemVer)'
+
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'build'
+    arguments: '-c $(BuildConfiguration) --no-restore /p:Version=$(GitVersion.AssemblySemVer)'
+
+- task: SonarCloudAnalyze@1
+  inputs:
+    jdkversion: 'JAVA_HOME_17_X64'
+
+- task: PublishSymbols@2
+  inputs:
+    SearchPattern: '**/bin/**/*.pdb'
+    SymbolServerType: 'TeamServices'
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)\src\AzureDevOps.Export.ActionableAgile.ConsoleUI\bin\Release\net8.0\'
+    Contents: '**'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
+
+- task: zip@0
+  inputs:
+    pathToZipFolder: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile/'
+    pathToZipFile: '$(Build.ArtifactStagingDirectory)/AzureDevOps.Export.ActionableAgile-$(GITVERSION.SemVer).zip'
+
+- task: CopyPublishBuildArtifacts@1
+  inputs:
+    Contents: '$(build.artifactstagingdirectory)'
+    ArtifactName: 'drop'
+    ArtifactType: 'Container'
+
+- task: SonarCloudPublish@1
+  inputs:
+    pollingTimeoutSec: '300'
