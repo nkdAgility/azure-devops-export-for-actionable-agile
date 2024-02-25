@@ -12,7 +12,7 @@ pool:
 stages:
 - stage: CI
   jobs:
-  - job: Build
+  - job: CIBuild
 
     steps:
     - task: gitversion/setup@0
@@ -74,6 +74,7 @@ stages:
 - stage: Release
   jobs:
   - job: GitHubRelease
+    dependsOn: CIBuild
     steps:
     - task: DownloadBuildArtifacts@1
       inputs:
