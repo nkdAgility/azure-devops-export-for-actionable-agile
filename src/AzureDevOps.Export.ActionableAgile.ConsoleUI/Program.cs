@@ -25,12 +25,12 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         static async Task<int> Main(string[] args)
         {
             var tokenOption = new Option<String?>("--token", "The auth token to use.");
-            var organizationUrlOption = new Option<String?>("--org", "The Organisation to connect to.");
-            organizationUrlOption.IsRequired = true;
+            var organizationUrlOption = new Option<String?>("--org", "The Organisation to connect to.") { IsRequired = true };
             var projectNameOption = new Option<String?>("--project", "The Organisation to connect to.");
             var teamNameOption = new Option<String?>("--team", "The Organisation to connect to.");
             var boardNameOption = new Option<String?>("--board", "The Organisation to connect to.");
-            var outputOption = new Option<String?>("--output", "Where to output the file to.");
+            var outputOption = new Option<String?>("--output", "Where to output the file to.") { IsRequired = true};
+
 
             var rootCommand = new RootCommand("Sample app for System.CommandLine");
             rootCommand.Add(organizationUrlOption);
