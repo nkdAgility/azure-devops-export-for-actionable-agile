@@ -25,7 +25,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         static async Task<int> Main(string[] args)
         {
             var tokenOption = new Option<String?>("--token", "The auth token to use.");
-            var organizationUrlOption = new Option<String?>("--org", "The Organisation to connect to.");
+            var organizationNameOption = new Option<String?>("--org", "The Organisation to connect to.");
             var projectNameOption = new Option<String?>("--project", "The Organisation to connect to.");
             var teamNameOption = new Option<String?>("--team", "The Organisation to connect to.");
             var boardNameOption = new Option<String?>("--board", "The Organisation to connect to.");
@@ -33,7 +33,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
 
 
             var rootCommand = new RootCommand("Sample app for System.CommandLine");
-            rootCommand.Add(organizationUrlOption);
+            rootCommand.Add(organizationNameOption);
             rootCommand.Add(tokenOption);
             rootCommand.Add(teamNameOption);
             rootCommand.Add(projectNameOption);
@@ -41,20 +41,20 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             rootCommand.Add(outputOption);
 
 
-            rootCommand.SetHandler(async (token, azureDevOpsOrganizationUrl, projectName, teamName, boardName, output) =>
+            rootCommand.SetHandler(async (token, organizationName, projectName, teamName, boardName, output) =>
             {
-                ExecuteCommand(token, azureDevOpsOrganizationUrl, projectName, teamName, boardName, output);
-            }, tokenOption, organizationUrlOption, projectNameOption, teamNameOption, boardNameOption, outputOption);
+                ExecuteCommand(token, organizationName, projectName, teamName, boardName, output);
+            }, tokenOption, organizationNameOption, projectNameOption, teamNameOption, boardNameOption, outputOption);
 
             return await rootCommand.InvokeAsync(args);
 
         }
 
-        private static void ExecuteCommand(string token, string azureDevOpsOrganizationUrl, string projectName, string teamName, string boardName, string output)
+        private static void ExecuteCommand(string token, string organizationName, string projectName, string teamName, string boardName, string output)
         {
             var authTool = new Authenticator();
             var authHeader = authTool.AuthenticationCommand(token).Result;
-            AzureDevOpsApi api = new AzureDevOpsApi(authHeader, azureDevOpsOrganizationUrl);
+            AzureDevOpsApi api = new AzureDevOpsApi(authHeader);
 
             // test 
             ProfileItem profileItem = GetProfileItem(authHeader);
@@ -75,15 +75,18 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             BacklogItem? backlogItem = null;
 
             WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
-            orgItem = GetOrganisationsItem(api, profileItem, azureDevOpsOrganizationUrl);
+            orgItem = GetOrganisationsItem(api, profileItem, organizationName);
+
+            api.SetOrganisation(orgItem);
+
             WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
-            projectItem = GetProjectName(authHeader, azureDevOpsOrganizationUrl, projectName);
+            projectItem = GetProjectName(authHeader, organizationName, projectName);
             WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
-            teamItem = GetTeamName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamName);
+            teamItem = GetTeamName(authHeader, organizationName, projectItem, teamName);
             WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
             boardItem = GetBoardName(api, projectItem, teamItem, boardName);
             WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
-            backlogItem = GetBacklogName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem.name);
+            backlogItem = GetBacklogName(authHeader, organizationName, projectItem, teamItem, boardItem.name);
             WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
 
             ExportData(authHeader, orgItem.accountUri, projectItem, teamItem, boardItem, backlogItem, output);
@@ -91,11 +94,20 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
 
         private static ProfileItem? GetProfileItem(string authHeader)
         {
-            ProfileItem? profileItem;
-            string apiCallUrl = $"https://app.vssps.visualstudio.com/_apis/profile/profiles/me";
-            var result = GetResult(authHeader, apiCallUrl);
-            profileItem = JsonConvert.DeserializeObject<ProfileItem>(result);
-            return profileItem;
+            ProfileItem? profileItem = null;
+            try
+            {
+                
+                string apiCallUrl = $"https://app.vssps.visualstudio.com/_apis/profile/profiles/me";
+                var result = GetResult(authHeader, apiCallUrl);
+                profileItem = JsonConvert.DeserializeObject<ProfileItem>(result);
+                return profileItem;
+            }
+            catch (Exception)
+            {
+                 
+                return profileItem;
+            }
         }
 
         private static OrgItem? GetOrganisationsItem(AzureDevOpsApi api, ProfileItem profileItem, string orgName)
@@ -149,7 +161,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             Console.Clear();
             Console.WriteLine("Azure DevOps Export for Actionable Agile");
             Console.WriteLine("================");
-            Console.WriteLine($"Org: {orgItem?.accountName} // {orgItem?.accountUri}" );
+            Console.WriteLine($"Org: {orgItem?.accountName} // {orgItem?.accountUri} | use --org {orgItem?.accountName}" );
             Console.WriteLine($"Project: {projectItem?.name} // {projectItem?.id}");
             Console.WriteLine($"Team: {teamItem?.name} // {teamItem?.id}");
             Console.WriteLine($"Board: {boardItem?.name} // {boardItem?.id}");
