@@ -25,7 +25,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         static async Task<int> Main(string[] args)
         {
             var tokenOption = new Option<String?>("--token", "The auth token to use.");
-            var organizationUrlOption = new Option<String?>("--org", "The Organisation to connect to.") { IsRequired = true };
+            var organizationUrlOption = new Option<String?>("--org", "The Organisation to connect to.");
             var projectNameOption = new Option<String?>("--project", "The Organisation to connect to.");
             var teamNameOption = new Option<String?>("--team", "The Organisation to connect to.");
             var boardNameOption = new Option<String?>("--board", "The Organisation to connect to.");
@@ -55,22 +55,71 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             var authTool = new Authenticator();
             var authHeader = authTool.AuthenticationCommand(token).Result;
             AzureDevOpsApi api = new AzureDevOpsApi(authHeader, azureDevOpsOrganizationUrl);
+
+            // test 
+            ProfileItem profileItem = GetProfileItem(authHeader);
+            if (profileItem == null)
+            {
+                Console.WriteLine("Unable to connect and get profile... check your authentication method... ");
+                Environment.Exit(1);
+                
+            } else
+            {
+                Console.WriteLine($"Connected as {profileItem.displayName} ");
+            }
+
+            OrgItem? orgItem = null;
             ProjectItem? projectItem = null;
             TeamItem? teamItem = null;
             BoardItem? boardItem = null;
             BacklogItem? backlogItem = null;
 
-            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
+            WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
+            orgItem = GetOrganisationsItem(api, profileItem, azureDevOpsOrganizationUrl);
+            WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
             projectItem = GetProjectName(authHeader, azureDevOpsOrganizationUrl, projectName);
-            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
+            WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
             teamItem = GetTeamName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamName);
-            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
+            WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
             boardItem = GetBoardName(api, projectItem, teamItem, boardName);
-            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
+            WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
             backlogItem = GetBacklogName(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem.name);
-            WriteCurrentStatus(azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem);
+            WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
 
-            ExportData(authHeader, azureDevOpsOrganizationUrl, projectItem, teamItem, boardItem, backlogItem, output);
+            ExportData(authHeader, orgItem.accountUri, projectItem, teamItem, boardItem, backlogItem, output);
+        }
+
+        private static ProfileItem? GetProfileItem(string authHeader)
+        {
+            ProfileItem? profileItem;
+            string apiCallUrl = $"https://app.vssps.visualstudio.com/_apis/profile/profiles/me";
+            var result = GetResult(authHeader, apiCallUrl);
+            profileItem = JsonConvert.DeserializeObject<ProfileItem>(result);
+            return profileItem;
+        }
+
+        private static OrgItem? GetOrganisationsItem(AzureDevOpsApi api, ProfileItem profileItem, string orgName)
+        {
+            OrgItem? orgItem = null;
+
+            var result = api.GetOrgs(profileItem).Result;
+            var orgItems = JsonConvert.DeserializeObject<OrgItems>(result);
+
+            if (orgName != null)
+            {
+                orgItem = orgItems.value.SingleOrDefault(pi => pi.accountName == orgName);
+            }
+            if (orgItem == null)
+            {
+                CommandLineChooser chooser = new CommandLineChooser("Organisations");
+                foreach (OrgItem bi in orgItems.value)
+                {
+                    chooser.Add(new CommandLineChoice(bi.accountName, bi.accountUri));
+                }
+                CommandLineChoice choice = chooser.Choose();
+                orgItem = orgItems.value.SingleOrDefault(pi => pi.accountName == choice?.Name);
+            }
+            return orgItem;
         }
 
         private static BacklogItem? GetBacklogName(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, TeamItem teamItem, string backlogName)
@@ -95,12 +144,12 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             return backlogItem;
         }
 
-        private static void WriteCurrentStatus(string azureDevOpsOrganizationUrl, ProjectItem? projectItem, TeamItem? teamItem, BoardItem boardItem, BacklogItem backlogItem)
+        private static void WriteCurrentStatus(OrgItem? orgItem, ProjectItem? projectItem, TeamItem? teamItem, BoardItem boardItem, BacklogItem backlogItem)
         {
             Console.Clear();
             Console.WriteLine("Azure DevOps Export for Actionable Agile");
             Console.WriteLine("================");
-            Console.WriteLine($"Org: {azureDevOpsOrganizationUrl}");
+            Console.WriteLine($"Org: {orgItem?.accountName} // {orgItem?.accountUri}" );
             Console.WriteLine($"Project: {projectItem?.name} // {projectItem?.id}");
             Console.WriteLine($"Team: {teamItem?.name} // {teamItem?.id}");
             Console.WriteLine($"Board: {boardItem?.name} // {boardItem?.id}");
@@ -137,7 +186,8 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
                 {
                     chooser.Add(new CommandLineChoice(bi.name, bi.id));
                 }
-                boardItem = boardItems.value.SingleOrDefault(pi => pi.name == chooser.Choose()?.Name);
+                CommandLineChoice choice = chooser.Choose();
+                boardItem = boardItems.value.SingleOrDefault(pi => pi.name == choice?.Name);
             }
             return boardItem;
         }
@@ -173,7 +223,8 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
                 {
                     chooser.Add(new CommandLineChoice(ti.name, ti.id));
                 }
-                return teamItems.value.SingleOrDefault(pi => pi.name == chooser.Choose()?.Name);
+                CommandLineChoice choice = chooser.Choose();
+                return teamItems.value.SingleOrDefault(pi => pi.name == choice?.Name);
 
             }
             return teamItem;
@@ -207,7 +258,8 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
                 {
                     chooser.Add(new CommandLineChoice(pi.name, pi.id));
                 }
-                return projectItems.value.SingleOrDefault(pi => pi.name == chooser.Choose()?.Name);
+                CommandLineChoice choice = chooser.Choose();
+                return projectItems.value.SingleOrDefault(pi => pi.name == choice?.Name);
 
             }
             return projectItem;
@@ -221,6 +273,12 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             string apiCallUrlWi = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamItem.id}/_apis/work/backlogs/{backlogItem.id}/workItems?api-version=7.2-preview.1";
             var resultWi = GetResult(authHeader, apiCallUrlWi);
             WorkItems workItems = JsonConvert.DeserializeObject<WorkItems>(resultWi);
+
+            if (!boardItem.isValid)
+            {
+                Console.WriteLine("Board selected is not valid. Check that you can view the board in Azure DevOps on the web.");
+                Environment.Exit(-1);
+            }
 
             string fields = $"{boardItem.fields.columnField.referenceName},{boardItem.fields.rowField.referenceName},{boardItem.fields.doneField.referenceName}";
 

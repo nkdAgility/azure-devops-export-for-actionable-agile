@@ -22,6 +22,12 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             return await GetResult(apiGetSingle);
         }
 
+        public async Task<string> GetOrgs(ProfileItem profileItem)
+        {
+            string apiGetSingle = $"https://app.vssps.visualstudio.com/_apis/accounts?memberId={profileItem.id}&api-version=7.1-preview.1";
+            return await GetResult(apiGetSingle);
+        }
+
         public async Task<string> GetBoards(string projectItemId, string teamItemId)
         {
             string apiCallUrl = $"{_azureDevOpsOrganizationUrl}/{projectItemId}/{teamItemId}/_apis/work/boards?api-version=7.2-preview.1";
@@ -55,5 +61,6 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             }
             return string.Empty;
         }
+
     }
 }
