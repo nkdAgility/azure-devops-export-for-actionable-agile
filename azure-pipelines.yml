@@ -116,7 +116,7 @@ stages:
           $pull = $pulls | Where-Object {$_.title -eq $VERSIONMESSAGE}
           if ($pull -eq $null) {
               Write-Host "No PR found for '$($VERSIONMESSAGE)'"
-              exit 1
+              exit 0
           }
           Write-Host "Found PR $($pull.PullRequestNumber) <---"
           
