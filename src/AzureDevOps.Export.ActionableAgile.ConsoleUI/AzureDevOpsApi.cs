@@ -8,23 +8,34 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
     internal class AzureDevOpsApi
     {
         private readonly string _authHeader;
-        private readonly string _azureDevOpsOrganizationUrl;
+        private OrgItem _orgItem;
 
-        public AzureDevOpsApi(string authHeader, string azureDevOpsOrganizationUrl)
+        public AzureDevOpsApi(string authHeader)
         {
             _authHeader = authHeader;
-            _azureDevOpsOrganizationUrl = azureDevOpsOrganizationUrl;
+        }
+
+        public void SetOrganisation(OrgItem orgItem)
+        {
+            _orgItem = orgItem;
         }
 
         public async Task<string> GetBoard(string projectItemId, string teamItemId, string boardName)
         {
-            string apiGetSingle = $"{_azureDevOpsOrganizationUrl}/{projectItemId}/{teamItemId}/_apis/work/boards/{boardName}?api-version=7.2-preview.1";
+            
+            string apiGetSingle = $"{_orgItem.accountUri}/{projectItemId}/{teamItemId}/_apis/work/boards/{boardName}?api-version=7.2-preview.1";
+            return await GetResult(apiGetSingle);
+        }
+
+        public async Task<string> GetOrgs(ProfileItem profileItem)
+        {
+            string apiGetSingle = $"https://app.vssps.visualstudio.com/_apis/accounts?memberId={profileItem.id}&api-version=7.1-preview.1";
             return await GetResult(apiGetSingle);
         }
 
         public async Task<string> GetBoards(string projectItemId, string teamItemId)
         {
-            string apiCallUrl = $"{_azureDevOpsOrganizationUrl}/{projectItemId}/{teamItemId}/_apis/work/boards?api-version=7.2-preview.1";
+            string apiCallUrl = $"{_orgItem.accountUri}/{projectItemId}/{teamItemId}/_apis/work/boards?api-version=7.2-preview.1";
             return await GetResult(apiCallUrl);
         }
 
@@ -55,5 +66,6 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             }
             return string.Empty;
         }
+
     }
 }

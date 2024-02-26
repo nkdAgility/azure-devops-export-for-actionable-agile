@@ -19,14 +19,23 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         // The AAD Instance is the instance of Azure, for example public Azure or Azure China.
         // The Authority is the sign-in URL of the tenant.
         //
-        internal static string aadInstance = "https://login.microsoftonline.com/{0}/v2.0";
-        internal static string tenant = "686c55d4-ab81-4a17-9eef-6472a5633fab";
-        internal static string clientId = "3c0fb0ea-116c-4972-82ce-c8f310865aed";
-        internal static string authority = String.Format(CultureInfo.InvariantCulture, aadInstance, tenant);
-        internal static string[] scopes = new string[] { "499b84ac-1321-427f-aa17-267ca6975798/user_impersonation" }; //Constant value to target Azure DevOps. Do not change
+        internal string aadInstance;
+        internal string tenant;
+        internal string clientId;
+        internal string authority;
+        internal string[] scopes;
                                                                                                                       
         // MSAL Public client app
-        private static IPublicClientApplication application;
+        private IPublicClientApplication application;
+
+        public Authenticator()
+        {
+            aadInstance = "https://login.microsoftonline.com/{0}/v2.0";
+            tenant = "686c55d4-ab81-4a17-9eef-6472a5633fab";
+            clientId = "3c0fb0ea-116c-4972-82ce-c8f310865aed";
+            authority = String.Format(CultureInfo.InvariantCulture, aadInstance, tenant);
+            scopes = new string[] { "499b84ac-1321-427f-aa17-267ca6975798/user_impersonation" }; //Constant value to target Azure DevOps. Do not change
+        }
 
 
         public async Task<string> AuthenticationCommand(string? token)
@@ -40,9 +49,9 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             try
             {
                 var authResult = await SignInUserAndGetTokenUsingMSAL(scopes);
+                string authHeader = authResult.CreateAuthorizationHeader(); // Create authorization header of the form "Bearer {AccessToken}"
 
-                // Create authorization header of the form "Bearer {AccessToken}"
-                return authResult.CreateAuthorizationHeader();
+                return authHeader;
             }
             catch (Exception ex)
             {
@@ -58,7 +67,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         /// </summary>
         /// <param name="scopes"></param>
         /// <returns>AuthenticationResult</returns>
-        private static async Task<AuthenticationResult> SignInUserAndGetTokenUsingMSAL(string[] scopes)
+        private async Task<AuthenticationResult> SignInUserAndGetTokenUsingMSAL(string[] scopes)
         {
             // Initialize the MSAL library by building a public client application
             application = PublicClientApplicationBuilder.Create(clientId)
