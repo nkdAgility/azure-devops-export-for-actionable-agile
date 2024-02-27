@@ -17,6 +17,7 @@ namespace AzureDevOps.Export.ActionableAgile.DataContracts
         public int Rev { get;  set; }
         public string? Tags { get;  set; }
         public string? Title { get;  set; }
+        public string? State { get; set; }
         public DateTime ChangedDate { get;  set; }
         public string? ColumnField { get;  set; }
         public string? RowField { get;  set; }
