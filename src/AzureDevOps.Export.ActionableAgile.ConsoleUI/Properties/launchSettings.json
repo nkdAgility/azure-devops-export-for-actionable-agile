@@ -6,7 +6,10 @@
     },
     "testData": {
       "commandName": "Project",
-      "commandLineArgs": "--org https://dev.azure.com/nkdagility-learn/ --project ApplicationDemo --team \"Application Overview\" --board Applications --output \"c:\\temp\\testout.csv\""
+      "commandLineArgs": "--org nkdagility-learn --project ApplicationDemo --team \"Application Overview\" --board Applications --output \"c:\\temp\\testout.csv\""
+    },
+    "no options": {
+      "commandName": "Project"
     }
   }
 }

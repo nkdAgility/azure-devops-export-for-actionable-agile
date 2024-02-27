@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AzureDevOps.Export.ActionableAgile.ConsoleUI.DataContracts
+namespace AzureDevOps.Export.ActionableAgile.DataContracts
 {
 
     public class BoardItems

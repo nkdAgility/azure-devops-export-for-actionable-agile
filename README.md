@@ -1,18 +1,28 @@
 # azure-devops-export-for-actionable-agile
 
+  The Azure DevOps Export for Actionable Agile allows you to export data from Azure DevOps for import into Actionable
+  Agile's standalone analytics tool on https://https://analytics.actionableagile.com/. Use when you are unable to use
+  the extension or already have a standalone licence.
 
+## Usage:
 
-## Usage
+  AzureDevOpsExportAA [options]
+
+## Options:
+
+  --org <org>                       the name of the organisation / account to connect to. If not provided you will be
+                                    asked to select.
+  --token <token>                   The auth token to use.
+  --team <team>                     The name of the team to connect to. If not provided you will be asked to select.
+  --project <project>               The name of the project to connect to. If not provided you will be asked to select.
+  --backlog, --board <board>        The name of the board/backlog to connect to. If not provided you will be asked to
+                                    select.
+  --format <Backlog|Board|Project>  Do you want to use board columns or backlog work item states, or the whole project
+                                    [default: Board]
+  --output <output> (REQUIRED)      Where to output the file to.
+  --version                         Show version information
+  -?, -h, --help                    Show help and usage information
+
+  ## Example
 
 `AzureDevOpsExportAA.exe --output "c:\Temp\export.csv" --token [PAT] --org nkdagility-learn --project ApplicationDemo --team "Application Overview"  --board Applications`
-
-
-- `--output` [requried] - sets the location where we will save the CSV. 
-- `--token` [requried] - sets the PAT token to authenticate with.
-- `--org` - the name of the organsaition/account. If not provided you will be offered a list to select from
-- `--project` - the name of the project. If not provided you will be offered a list to select from
-- `--team` - the name of the team. If not provided you will be offered a list to select from
-- `--board` - the name of the board. If not provided you will be offered a list to select from
-
-
-Recommended: Set a [PAT token](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows) as the primary method of authentication. 
