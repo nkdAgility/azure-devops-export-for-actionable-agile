@@ -1,4 +1,4 @@
-﻿using AzureDevOps.Export.ActionableAgile.ConsoleUI.DataContracts;
+﻿using AzureDevOps.Export.ActionableAgile.DataContracts;
 using Microsoft.Identity.Client;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -21,36 +21,48 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
 {
     internal class Program
     {
+        public enum RenderMode
+        {
+            Board =1,
+            Backlog =2,
+            Project =4
+        }
         
         static async Task<int> Main(string[] args)
         {
             var tokenOption = new Option<String?>("--token", "The auth token to use.");
-            var organizationNameOption = new Option<String?>("--org", "The Organisation to connect to.");
-            var projectNameOption = new Option<String?>("--project", "The Organisation to connect to.");
-            var teamNameOption = new Option<String?>("--team", "The Organisation to connect to.");
-            var boardNameOption = new Option<String?>("--board", "The Organisation to connect to.");
+            var organizationNameOption = new Option<String?>("--org", "the name of the organisation / account to connect to. If not provided you will be asked to select.");
+            var projectNameOption = new Option<String?>("--project", "The name of the project to connect to. If not provided you will be asked to select.");
+            var teamNameOption = new Option<String?>("--team", "The name of the team to connect to. If not provided you will be asked to select.");
+            var boardNameOption = new Option<String?>("--board", "The name of the board/backlog to connect to. If not provided you will be asked to select.");
+            boardNameOption.AddAlias("--backlog");
+
+            var modeOption = new Option<RenderMode>("--format", "Do you want to use board columns or backlog work item states, or the whole project");
+            modeOption.SetDefaultValue(RenderMode.Board);
+ 
             var outputOption = new Option<String?>("--output", "Where to output the file to.") { IsRequired = true};
 
 
-            var rootCommand = new RootCommand("Sample app for System.CommandLine");
+            var rootCommand = new RootCommand("The Azure DevOps Export for Actionable Agile allows you to export data from Azure DevOps for import into Actionable Agile's standalone analytics tool on https://https://analytics.actionableagile.com/. Use when you are unable to use the extension or already have a standalone licence.");
             rootCommand.Add(organizationNameOption);
             rootCommand.Add(tokenOption);
             rootCommand.Add(teamNameOption);
             rootCommand.Add(projectNameOption);
             rootCommand.Add(boardNameOption);
+            rootCommand.Add(modeOption);
             rootCommand.Add(outputOption);
 
 
-            rootCommand.SetHandler(async (token, organizationName, projectName, teamName, boardName, output) =>
+            rootCommand.SetHandler(async (token, organizationName, projectName, teamName, boardName, renderMode, output) =>
             {
-                ExecuteCommand(token, organizationName, projectName, teamName, boardName, output);
-            }, tokenOption, organizationNameOption, projectNameOption, teamNameOption, boardNameOption, outputOption);
+                ExecuteCommand(token, organizationName, projectName, teamName, boardName, renderMode, output);
+            }, tokenOption, organizationNameOption, projectNameOption, teamNameOption, boardNameOption, modeOption, outputOption);
 
             return await rootCommand.InvokeAsync(args);
 
         }
 
-        private static void ExecuteCommand(string token, string organizationName, string projectName, string teamName, string boardName, string output)
+        private static void ExecuteCommand(string token, string organizationName, string projectName, string teamName, string boardName, RenderMode mode, string output)
         {
             var authTool = new Authenticator();
             var authHeader = authTool.AuthenticationCommand(token).Result;
@@ -89,7 +101,30 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             backlogItem = GetBacklogName(authHeader, organizationName, projectItem, teamItem, boardItem.name);
             WriteCurrentStatus(orgItem, projectItem, teamItem, boardItem, backlogItem);
 
-            ExportData(authHeader, orgItem.accountUri, projectItem, teamItem, boardItem, backlogItem, output);
+
+            List<dynamic> recordsCSV;
+            switch (mode)
+            {
+                case RenderMode.Backlog:
+                case RenderMode.Board:
+                    recordsCSV = BuildCSVForBoard(api, projectItem, teamItem, boardItem, backlogItem);
+                    break;
+                case RenderMode.Project:
+                    throw new NotImplementedException();
+                default:
+                    throw new NotImplementedException();
+            }
+
+
+            using (var writer = new StringWriter())
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            {
+                csv.WriteRecords(recordsCSV);
+                var outPath = Path.Combine(output);
+                Console.WriteLine(writer.ToString());
+                System.IO.File.WriteAllText(outPath, writer.ToString());
+            }
+
         }
 
         private static ProfileItem? GetProfileItem(string authHeader)
@@ -114,8 +149,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
         {
             OrgItem? orgItem = null;
 
-            var result = api.GetOrgs(profileItem).Result;
-            var orgItems = JsonConvert.DeserializeObject<OrgItems>(result);
+            OrgItems orgItems = api.GetOrgs(profileItem).Result;
 
             if (orgName != null)
             {
@@ -176,23 +210,12 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             BoardItem? boardItem = null;
             if (boardName != null)
             {
-                var singleResult = api.GetBoard(projectItem.id, teamItem.id, boardName).Result;  
-                if (string.IsNullOrEmpty(singleResult))
-                {
-                    boardItem = null;
-                }
-                else
-                {
-                    boardItem = JsonConvert.DeserializeObject<BoardItem>(singleResult);
-                }
+                boardItem = api.GetBoard(projectItem.id, teamItem.id, boardName).Result; 
             }
             if (boardItem == null)
             {
-                
-                var result = api.GetBoards(projectItem.id, teamItem.id).Result;
 
-                var boardItems = JsonConvert.DeserializeObject<BoardItems>(result);
-
+                var boardItems = api.GetBoards(projectItem.id, teamItem.id).Result;
                 CommandLineChooser chooser = new CommandLineChooser("Boards");
                 foreach (BoardItem bi in boardItems.value)
                 {
@@ -277,14 +300,10 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             return projectItem;
         }
 
-        private static void ExportData(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, TeamItem teamItem, BoardItem boardItem, BacklogItem backlogItem, string output)
+        private static List<dynamic> BuildCSVForBoard(AzureDevOpsApi api, ProjectItem projectItem, TeamItem teamItem, BoardItem boardItem, BacklogItem backlogItem)
         {
 
-
-            /// get Work Items From Boards
-            string apiCallUrlWi = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/{teamItem.id}/_apis/work/backlogs/{backlogItem.id}/workItems?api-version=7.2-preview.1";
-            var resultWi = GetResult(authHeader, apiCallUrlWi);
-            WorkItems workItems = JsonConvert.DeserializeObject<WorkItems>(resultWi);
+            WorkItems? workItems =  api.GetWorkItemsFromBacklog(projectItem, teamItem, backlogItem).Result;
 
             if (!boardItem.isValid)
             {
@@ -297,7 +316,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             var recordsCSV = new List<dynamic>();
             foreach (WorkItemElement wi in workItems.workItems)
             {
-                WorkItemDataParent witData = GetWorkItemData(authHeader, azureDevOpsOrganizationUrl, projectItem, boardItem, fields, wi);
+                WorkItemDataParent witData = api.GetWorkItemData(projectItem, boardItem, fields, wi).Result;
                Console.WriteLine($"Loaded {witData.Revisions.Count} revisions for {witData.Id}");
 
 
@@ -335,14 +354,7 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             }
             Console.WriteLine(workItems.workItems.ToList().Count);
 
-            using (var writer = new StringWriter())
-            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
-            {
-                csv.WriteRecords(recordsCSV);
-                var outPath = Path.Combine(output);
-                Console.WriteLine(writer.ToString());
-                System.IO.File.WriteAllText(outPath, writer.ToString());
-            }
+            return recordsCSV;
         }
 
         private static DateTime AddColumnToCsv(IDictionary<string, object> recordCsv, WorkItemDataParent witData, DateTime recordLatest, string columnName, IEnumerable<WorkItemData> revsforColumn)
@@ -371,49 +383,6 @@ namespace AzureDevOps.Export.ActionableAgile.ConsoleUI
             }
 
             return recordLatest;
-        }
-
-        private static WorkItemDataParent GetWorkItemData(string authHeader, string azureDevOpsOrganizationUrl, ProjectItem projectItem, BoardItem boardItem, string fields, WorkItemElement wi)
-        {
-            //GET https://dev.azure.com/{organization}/{project}/_apis/wit/workitems/{id}?$expand=fields&api-version=7.2-preview.3
-
-            string apiCallUrlWiSingle = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/_apis/wit/workitems/{wi.target.id}?$fields={fields}&api-version=7.2-preview.3";
-            var single = GetResult(authHeader, apiCallUrlWiSingle);
-            JObject jsondata = JObject.Parse(single);
-            WorkItemDataParent witData = new WorkItemDataParent();
-            witData.Id = (int)jsondata["id"];
-            witData.Rev = (int)jsondata["rev"];
-            witData.Title = (string)jsondata["fields"]["System.Title"];
-            witData.ChangedDate = (DateTime)jsondata["fields"]["System.ChangedDate"];
-            witData.Tags = (string)jsondata["fields"]["System.Tags"];
-            witData.WorkItemType = (string)jsondata["fields"]["System.WorkItemType"];
-            witData.Revisions = new List<WorkItemData>();
-
-            //GET https://dev.azure.com/{organization}/{project}/_apis/wit/workItems/{id}/revisions?$top={$top}&$skip={$skip}&$expand={$expand}&api-version=7.2-preview.3
-            string apiCallUrlWiRevisions = $"{azureDevOpsOrganizationUrl}/{projectItem.id}/_apis/wit/workitems/{wi.target.id}/revisions?$expand=fields&api-version=7.2-preview.3";
-            var revs = GetResult(authHeader, apiCallUrlWiRevisions);
-            JObject revdata = JObject.Parse(revs);
-
-            var count = (int)revdata["count"];
-
-            for (int i = 0; i < count; i++)
-            {
-                var jsonrev = revdata["value"][i];
-                var witRevData = new WorkItemData();
-                witRevData.Rev = (int)jsonrev["rev"];
-                witRevData.Id = (int)jsonrev["id"];
-                var jsonfields = revdata["value"][i]["fields"];
-                witRevData.Title = (string)jsonfields["System.Title"];
-                witRevData.ChangedDate = (DateTime)jsonfields["System.ChangedDate"];
-                witRevData.Tags = (string)jsonfields["System.Tags"];
-                witRevData.ColumnField = (string)jsonfields[boardItem.fields.columnField.referenceName];
-                witRevData.RowField = (string)jsonfields[boardItem.fields.rowField.referenceName];
-
-                witRevData.DoneField = jsonfields[boardItem.fields.doneField.referenceName]?.ToObject<bool>();
-                witData.Revisions.Add(witRevData);
-            }
-
-            return witData;
         }
 
         private static string GetResult(string authHeader, string apiToCall)

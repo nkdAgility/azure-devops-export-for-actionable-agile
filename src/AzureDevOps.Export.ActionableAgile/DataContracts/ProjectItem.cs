@@ -1,11 +1,11 @@
-﻿using AzureDevOps.Export.ActionableAgile.ConsoleUI.DataContracts;
+﻿using AzureDevOps.Export.ActionableAgile.DataContracts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AzureDevOps.Export.ActionableAgile.ConsoleUI.DataContracts
+namespace AzureDevOps.Export.ActionableAgile.DataContracts
 {
 
     public class ProjectItem
